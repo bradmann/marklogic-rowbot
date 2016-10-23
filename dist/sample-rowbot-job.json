@@ -1,0 +1,31 @@
+{
+	"queries": [
+		{
+			"database": "XE",
+			"query": "SELECT * FROM POSITION",
+			"collections": ["position1-staging"]
+		},
+		{
+			"connectionString": "jdbc:oracle:thin:@//someotherhost:1521",
+			"username": "admin2",
+			"password": "password",
+			"query": "SELECT * FROM POSITION",
+			"collections": ["position2-staging"]
+		}
+	],
+	"queryThreads": 10,
+	"insertThreads": 10,
+	"docType": "json",
+	"marklogic": {
+		"hostname": "localhost",
+		"port": "8041",
+		"authentication": "digest",
+		"username": "admin",
+		"password": "admin"
+	},
+	"oracle": {
+		"connectionString": "jdbc:oracle:thin:@//localhost:1521",
+		"username": "system",
+		"password": "password"
+	}
+}
