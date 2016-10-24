@@ -2,15 +2,15 @@
 	"queries": [
 		{
 			"database": "XE",
-			"query": "SELECT * FROM POSITION",
-			"collections": ["position1-staging"]
+			"query": "SELECT * FROM FOO",
+			"collections": ["query1-staging"]
 		},
 		{
 			"connectionString": "jdbc:oracle:thin:@//someotherhost:1521",
 			"username": "admin2",
 			"password": "password",
-			"query": "SELECT * FROM POSITION",
-			"collections": ["position2-staging"]
+			"query": "SELECT * FROM BAR",
+			"collections": ["query2-staging"]
 		}
 	],
 	"queryThreads": 10,
