@@ -6,7 +6,7 @@ version '0.0.1'
  * directory.
  */
 apply plugin: 'java'
-apply plugin: 'distribution'
+apply plugin: 'application'
 
 repositories {
 	jcenter()
@@ -23,9 +23,7 @@ dependencies {
 
 
 
-defaultTasks 'clean', 'buildRowbot'
-
-def targetDir = "build/rowbot"
+defaultTasks 'clean', 'distZip'
 
 def getVersionName = { ->
 	def stdout = new ByteArrayOutputStream()
@@ -36,18 +34,6 @@ def getVersionName = { ->
 	return stdout.toString().trim()
 }
 
-repositories {
-    flatDir {
-       dirs 'jars'
-   }
-}
-
-jar {
-	manifest {
-		attributes 'Main-Class': 'com.marklogic.rowbot.RowBot'
-	}
-}
-
 compileJava() {
 	sourceCompatibility = 1.7
 	targetCompatibility = 1.7
@@ -56,24 +42,4 @@ compileJava() {
 	}
 }
 
-task copyProjectToBuildDir(type: Copy, dependsOn: build) {
-	from 'project/'
-	into targetDir
-}
-
-//create a single Jar with all dependencies
-task fatJar(type: Jar, dependsOn: copyProjectToBuildDir) {
-	destinationDir = file('build/dist')
-	manifest {
-        attributes 'Implementation-Title': 'RowBot Executable Jar',
-        	'Implementation-Version': '1.0',
-        	'Main-Class': 'com.marklogic.rowbot.RowBot'
-    }
-    baseName = 'rowbot-all'
-    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
-    with jar
-}
-
-task buildRowbot(type: Delete, dependsOn: fatJar) {
-	delete 'build/tmp', 'build/classes', 'build/dependency-cache', 'build/libs'
-}
+mainClassName = "com.marklogic.rowbot.RowBot"
