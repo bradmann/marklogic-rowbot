@@ -3,6 +3,19 @@
  * directory.
  */
 apply plugin: 'java'
+apply plugin: 'distribution'
+
+repositories {
+	jcenter()
+	maven { url "http://repo.spring.io/milestone" }
+	maven { url "http://developer.marklogic.com/maven2/" }
+	mavenLocal()
+}
+
+dependencies {
+	compile "org.json:json:20160212"
+	compile "com.marklogic:marklogic-xcc:8.0.6"
+}
 
 defaultTasks 'clean', 'buildRowbot'
 
@@ -21,20 +34,6 @@ repositories {
     flatDir {
        dirs 'jars'
    }
-}
-
-dependencies {
-	compile name: 'marklogic-xcc-8.0.5'
-	compile name: 'org.json'
-	compile name: 'ojdbc6'
-}
-
-sourceSets {
-	main {
-		java {
-			srcDirs = ['src/java/com/marklogic/rowbot']
-		}
-	}
 }
 
 jar {
