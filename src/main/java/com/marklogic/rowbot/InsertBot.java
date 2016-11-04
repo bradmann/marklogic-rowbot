@@ -3,7 +3,6 @@
  *
  * @author  Brad Mann brad.mann@marklogic.com
  */
-package com.marklogic.rowbot;
 
 import java.io.InputStream;
 import java.util.HashMap;
