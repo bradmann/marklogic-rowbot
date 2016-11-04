@@ -4,6 +4,8 @@
  * @author  Brad Mann brad.mann@marklogic.com
  */
 
+package com.marklogic.rowbot;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -16,6 +18,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 import org.json.JSONObject;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 class QueryBot implements Runnable {
 	static final double NANO_TIME_DIV = 1000000000.0;
@@ -44,8 +47,13 @@ class QueryBot implements Runnable {
 		}
 		
 		try {
-			DriverManager.registerDriver(new oracle.jdbc.driver.OracleDriver());
-			this.connection = DriverManager.getConnection(connectionString, user, password);
+			//DriverManager.registerDriver(new oracle.jdbc.driver.OracleDriver());
+			DriverManagerDataSource ds = new DriverManagerDataSource();
+			ds.setDriverClassName("oracle.jdbc.driver.OracleDriver");
+			ds.setUrl("JDBC_URL");
+			ds.setUsername("JDBC_USERNAME");
+			ds.setPassword("JDBC_PASSWORD");
+			this.connection = ds.getConnection();;
 		} catch (SQLException e) {
 			this.initFailed = true;
 			this.rowBot.queryComplete(false, this.queryObject.getString("queryId"), this.queryObject.getString("query"), 0, 0, e.toString());

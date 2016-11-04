@@ -1,3 +1,5 @@
+package com.marklogic.rowbot;
+
 /**
  * Application for executing queries against an Oracle DB and inserting the
  * results into MarkLogic via XCC
