@@ -1,10 +1,11 @@
+package com.marklogic.rowbot;
+
 /**
  * Application for executing queries against an Oracle DB and inserting the
  * results into MarkLogic via XCC
  *
  * @author  Brad Mann brad.mann@marklogic.com
  */
-package com.marklogic.rowbot;
 
 import java.io.IOException;
 import java.io.InputStream;
