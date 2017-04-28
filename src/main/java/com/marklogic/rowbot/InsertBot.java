@@ -3,7 +3,6 @@
  *
  * @author  Brad Mann brad.mann@marklogic.com
  */
-
 package com.marklogic.rowbot;
 
 import java.io.InputStream;
@@ -13,17 +12,21 @@ import java.util.UUID;
 
 import org.json.JSONObject;
 
+import com.marklogic.xcc.Session;
+
 class InsertBot implements Runnable {  
 	private Map<String, Object> row;
 	private JSONObject queryObject;
 	private int rowNum;
 	private RowBot rowBot;
+	private Session session;
 	
 	public InsertBot(Map<String, Object> row, JSONObject queryObject, int rowNum, RowBot rowBot){  
 		this.row = row;
 		this.queryObject = queryObject;
 		this.rowNum = rowNum;
 		this.rowBot = rowBot;
+		this.session = rowBot.contentSource.newSession();
 	}
 	
 	public void run() {
@@ -42,19 +45,20 @@ class InsertBot implements Runnable {
 		
 		JSONObject json = new JSONObject(stringMap);
 		String[] collections = this.queryObject.getJSONArray("collections").toList().toArray(new String[0]);
-		String uriBase = "/rowbot/" + this.queryObject.getString("timestamp") + "/" + this.queryObject.getString("queryId") + "/";
+		String uriBase = rowBot.uriPrefix + this.queryObject.getString("timestamp") + "/" + this.queryObject.getString("queryId") + "/";
 		
 		for (String key : binaryMap.keySet()) {
 			String uri = uriBase + "binary/" + key;
-			JSONObject result = rowBot.insertBinaryDoc(uri, binaryMap.get(key), null, collections);
+			JSONObject result = rowBot.insertBinaryDoc(session, uri, binaryMap.get(key), null, collections);
 			String message = (result.has("message")) ? result.getString("message") : null;
-			rowBot.insertComplete(result.getBoolean("success"), this.queryObject.getString("queryId"), uri, message);
+			rowBot.insertComplete(session, result.getBoolean("success"), this.queryObject.getString("queryId"), uri, message);
 		}
 		
 		String uri = uriBase + String.valueOf(this.rowNum) + ".json";
 		
-		JSONObject result = rowBot.insertJSONDoc(uri, json.toString(), null, collections);
+		JSONObject result = rowBot.insertJSONDoc(session, uri, json.toString(), null, collections);
 		String message = (result.has("message")) ? result.getString("message") : null;
-		rowBot.insertComplete(result.getBoolean("success"), this.queryObject.getString("queryId"), uri, message);
+		rowBot.insertComplete(session, result.getBoolean("success"), this.queryObject.getString("queryId"), uri, message);
+		session.close();
 	}
 } 
