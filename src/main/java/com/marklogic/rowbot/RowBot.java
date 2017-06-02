@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
-import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.text.DateFormat;
@@ -50,22 +49,21 @@ public class RowBot implements Runnable {
 	static final int INSERT_RETRY_SLEEP_MILLIS = 1000;
 	//private Session session;
 	protected ContentSource contentSource;
-	String timestamp;
+	protected String timestamp;
 	String jobName;
-	String uriPrefix;
+	protected String uriPrefix;
 	String type;
-	private List<String> queryReportUris;
+	protected List<String> queryReportUris;
 	private List<String> insertReportUris;
 	private ConcurrentHashMap<String, List<JSONObject>> insertResults;
 	private JSONArray queries;
 	private JSONObject mlConfig;
 	private ExecutorService queryPool;
-	private ExecutorService insertPool;
 	private LinkedBlockingQueue<Runnable> queryQueue;
-	private LinkedBlockingQueue<Runnable> insertQueue;
 	private HashMap<String, JSONObject> connHM;
 	private String rowbotReportUri;
-	private HashMap<String, Connection> queryConnHM = new HashMap<String, Connection>();
+	protected int numInsertThreads = 1;
+	protected int numQueryThreads = 1;
 		
 	private HashMap<String, JSONObject> parseConnections(JSONArray connArray) {
 		HashMap<String, JSONObject> hm = new HashMap<String, JSONObject>();
@@ -85,8 +83,8 @@ public class RowBot implements Runnable {
 		
 		JSONObject config = new JSONObject(configString);
 		this.queries = config.getJSONArray("queries");
-		int numQueryThreads = config.getInt("queryThreads");
-		int numInsertThreads = config.getInt("insertThreads");
+		this.numQueryThreads = config.getInt("queryThreads");
+		this.numInsertThreads = config.getInt("insertThreads");
 		this.mlConfig = config.getJSONObject("marklogic");
 		this.jobName = config.has("jobName") ? config.getString("jobName") : null;
 		this.uriPrefix = config.has("uriPrefix") ? config.getString("uriPrefix") : "/rowbot/";
@@ -100,10 +98,9 @@ public class RowBot implements Runnable {
 		this.timestamp = df.format(new Date());
 		
 		this.queryQueue = new LinkedBlockingQueue<Runnable>(QUERY_QUEUE_SIZE);
-		this.insertQueue = new LinkedBlockingQueue<Runnable>(INSERT_QUEUE_SIZE);
 		
 		this.queryPool = new ThreadPoolExecutor(numQueryThreads, numQueryThreads, 0L, TimeUnit.MILLISECONDS, queryQueue);
-		this.insertPool = new ThreadPoolExecutor(numInsertThreads, numInsertThreads, 0L, TimeUnit.MILLISECONDS, insertQueue);
+		
 		
 		contentSource = ContentSourceFactory.newContentSource(mlConfig.getString("hostname"), Integer.parseInt(mlConfig.getString("port")), mlConfig.getString("username"), mlConfig.getString("password"));
 		//this.session = contentSource.newSession();
@@ -121,35 +118,15 @@ public class RowBot implements Runnable {
 			System.out.println("Error parsing JSON in connections array." + e.getMessage());
 
 		} catch (SQLException e) {
-			Session session = contentSource.newSession();
 			JSONObject json = new JSONObject();
 			json.put("timestamp", timestamp);
 			json.put("status", "error");
 			json.put("errorMessage", e.getMessage());
 			json.put("type", this.type);
-			session = contentSource.newSession();
+			Session session = contentSource.newSession();
 			insertJSONDoc(session, this.rowbotReportUri, json.toString(), null, new String[] {"rowbot-report"});
 			session.close();
 			System.out.println("Error registering driver:" + e.getMessage());
-		}
-	}
-	
-	protected void queryComplete(Session session, boolean success, String queryId, String query, int resultCount, double queryTime, String message) {
-		String uri = this.uriPrefix + this.timestamp + "/" + queryId + "/rowbot-query-report.json";
-		JSONObject results = new JSONObject();
-		results.put("success", success);
-		results.put("queryId", queryId);
-		results.put("queryTime", queryTime);
-		results.put("query", query);
-		results.put("totalRows", resultCount);
-		if (message != null) {
-			results.put("message", message);
-		}
-
-		insertJSONDoc(session, uri, results.toString(), null, new String[] {"rowbot-query-report"});
-
-		synchronized(queryReportUris) {
-			queryReportUris.add(uri);
 		}
 	}
 	
@@ -295,27 +272,37 @@ public class RowBot implements Runnable {
 			JSONObject insertStatus = new JSONObject();
 			
 			int statusCounter = STATUS_UPDATE_INTERVAL;
-			while (rowBotThread.isAlive() || !queryPool.isTerminated() || !insertPool.isTerminated()) {
+			while (rowBotThread.isAlive() || !queryPool.isTerminated()) {
 				if (!rowBotThread.isAlive() && !queryPool.isShutdown()) {
 					queryPool.shutdown();
-				}
-				
-				if (!rowBotThread.isAlive() && queryPool.isTerminated() && !insertPool.isShutdown()) {
-					insertPool.shutdown();
 				}
 				
 				if (statusCounter % STATUS_UPDATE_INTERVAL == 0) {
 					queryStatus.put("running", ((ThreadPoolExecutor) queryPool).getActiveCount());
 					queryStatus.put("queued", (QUERY_QUEUE_SIZE - queryQueue.remainingCapacity()));
-					insertStatus.put("running", ((ThreadPoolExecutor) insertPool).getActiveCount());
-					insertStatus.put("queued", (INSERT_QUEUE_SIZE - insertQueue.remainingCapacity()));
 					status.put("queries", queryStatus);
+					
+					int insertQueuedCount = 0;
+					int insertActiveCount = 0;
+					synchronized(QueryBot.activeTasks) {
+						Iterator<Runnable> iterator = QueryBot.activeTasks.iterator();
+						while (iterator.hasNext()) {
+							QueryBot qb = (QueryBot)iterator.next();
+							
+							insertQueuedCount += (qb.INSERT_QUEUE_SIZE - qb.insertQueue.remainingCapacity());
+							insertActiveCount += ((ThreadPoolExecutor) qb.insertPool).getActiveCount();
+						}
+					}
+					
+					insertStatus.put("running", insertActiveCount);
+					insertStatus.put("queued", insertQueuedCount);
 					status.put("inserts", insertStatus);
+					
 					System.out.println(status.toString());
 				}
 				statusCounter = (statusCounter == 1) ? STATUS_UPDATE_INTERVAL : statusCounter - 1;
 				
-				if (rowBotThread.isAlive() || !queryPool.isTerminated() || !insertPool.isTerminated()) {
+				if (rowBotThread.isAlive() || !queryPool.isTerminated()) {
 					Thread.sleep(250);
 				}
 			}
@@ -345,13 +332,6 @@ public class RowBot implements Runnable {
 
 		} finally {
 			session.close();
-			for (Connection curConn : this.queryConnHM.values()) {
-				try {
-					curConn.close();
-				} catch (SQLException e) {
-					// swallow
-				}
-			}
 		}
 	}
 
@@ -365,12 +345,8 @@ public class RowBot implements Runnable {
 			String dbKey = queryObject.getString("database");
 			Runnable queryThread;
 
-			queryThread = new QueryBot((JSONObject) this.connHM.get(dbKey), queryObject, insertPool, this);
+			queryThread = new QueryBot((JSONObject) this.connHM.get(dbKey), queryObject, this);
 			queryPool.execute(queryThread);
 		}
-	}
-	
-	public synchronized void addConnection(String key, Connection conn) {
-		this.queryConnHM.put(key, conn);
 	}
 }

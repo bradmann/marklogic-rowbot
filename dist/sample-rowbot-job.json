@@ -4,17 +4,10 @@
 			"database": "XE",
 			"query": "SELECT * FROM FOO",
 			"collections": ["query1-staging"]
-		},
-		{
-			"connectionString": "jdbc:oracle:thin:@//someotherhost:1521",
-			"username": "admin2",
-			"password": "password",
-			"query": "SELECT * FROM BAR",
-			"collections": ["query2-staging"]
 		}
 	],
-	"queryThreads": 10,
-	"insertThreads": 10,
+	"queryThreads": 5, 
+	"insertThreads": 1, 
 	"docType": "json",
 	"marklogic": {
 		"hostname": "localhost",
@@ -23,9 +16,15 @@
 		"username": "admin",
 		"password": "admin"
 	},
-	"oracle": {
-		"connectionString": "jdbc:oracle:thin:@//localhost:1521",
-		"username": "system",
-		"password": "password"
-	}
+	"connections": [
+		{	"key": "XE",
+			"connectionString": "jdbc:oracle:thin:@//localhost:1521",
+			"properties": {
+				"user": "system",
+				"password": "password",
+				"defaultRowPrefetch": "20"
+			}
+		}
+	],
+	"jobName": "foo"
 }
