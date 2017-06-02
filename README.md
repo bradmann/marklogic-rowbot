@@ -19,16 +19,16 @@ From within the dist directory, run
 ```
 
 ## Rowbot Processing Steps
-1. RowBot starts by constructing a [rowbot-report](#Sample-rowbot-report.json) document within the target MarkLogic database (via the defined XCC AppServer.)  The uri format for this file will be something like:
+1. RowBot starts by constructing a [rowbot-report](#sample-rowbot-report) document within the target MarkLogic database (via the defined XCC AppServer.)  The uri format for this file will be something like:
 ```
 /rowbot/2017-05-31T15:12:55.972Z/rowbot-report.json
 ```
 
-2. RowBot then spawns N QueryBot Threads (as defined by "queryThreads" in the [rowbot-job-file](#Reference-rowbot-job-file).)  Each thread is given a query to work on from the list of queries in the "queries" section.  
+2. RowBot then spawns N QueryBot Threads (as defined by "queryThreads" in the [rowbot-job-file](#reference-rowbot-job-file).)  Each thread is given a query to work on from the list of queries in the "queries" section.  
 
-	* N InsertBot threads are created per QueryBot thread (as defined by "insertThreads" in the [rowbot-job-file](#Reference-rowbot-job-file).
-		* Each insert thread will update a corresponding InsertReport that lists all document uris inserted as a [rowbot-insert-report](#Sample-rowbot-insert-report)
-	* When all row insertions into MarkLogic are complete, QueryBot creates a [rowbot-query-report](#Sample-rowbot-query-report) document.  The uri format for this file will be similar to:
+	* N InsertBot threads are created per QueryBot thread (as defined by "insertThreads" in the [rowbot-job-file](#reference-rowbot-job-file).
+		* Each insert thread will update a corresponding InsertReport that lists all document uris inserted as a [rowbot-insert-report](#sample-rowbot-insert-report)
+	* When all row insertions into MarkLogic are complete, QueryBot creates a [rowbot-query-report](#sample-rowbot-query-report) document.  The uri format for this file will be similar to:
 
 ```
 /rowbot/2017-05-31T15:12:55.972Z/d4d9fea9-4484-401d-9e79-f70354a7b9e2/rowbot-query-report.json
@@ -36,11 +36,11 @@ From within the dist directory, run
 
 Note: Each Query thread manages it's own insert threads
 
-3. When all QueryBot Threads are complete, RowBot updates the [rowbot-report](#Sample-rowbot-report.json) file with updated insertion information.
+3. When all QueryBot Threads are complete, RowBot updates the [rowbot-report](#sample-rowbot-report) file with updated insertion information.
 
 4. RowBot exits
 
-### Sample rowbot-report.json
+### Sample rowbot-report
 
 ```
 {
