@@ -76,11 +76,11 @@ class QueryBot implements Runnable {
 
 		try {
 			Properties props = new Properties();
-			JSONObject propsObj = connectionObj.getJSONObject("properties");
-			Iterator<String> itr = propsObj.keys();
-			while (itr.hasNext()) {
-				String key = itr.next();
-				props.put(key, propsObj.getString(key));
+			JSONObject propsObject = connectionObj.getJSONObject("properties");
+			Iterator<String> keys = propsObject.keys();
+			while (keys.hasNext()) {
+				String key = keys.next();
+				props.put(key, propsObject.getString(key));
 			}
 
 			this.connection = DriverManager.getConnection(connectionString, props);
@@ -92,6 +92,8 @@ class QueryBot implements Runnable {
 		double queryTime = 0;
 		long queryStart = System.nanoTime();
 		int rowNum = 0;
+		boolean success = true;
+		String successMsg = null;
 		try {
 			String query = this.queryObject.getString("query");
 			try (
@@ -114,6 +116,11 @@ class QueryBot implements Runnable {
 					Runnable insertThread = new InsertBot(rowMap, queryObject, rowNum, this.rowBot);
 					insertPool.execute(insertThread);
 				}
+			} catch (Exception e) {
+				System.out.println("Error with Query: " + query);
+				e.printStackTrace();
+				success = false;
+				successMsg = e.toString();
 			}
 
 			//signals pool to not accept more tasks.
@@ -125,10 +132,12 @@ class QueryBot implements Runnable {
 
 			long queryEnd = System.nanoTime();
 			queryTime = (queryEnd - queryStart) / QueryBot.NANO_TIME_DIV;
-			this.queryComplete(true, this.queryObject.getString("queryId"), this.queryObject.getString("query"), rowNum, queryTime, null);
 		} catch (Exception e) {
-			this.queryComplete(false, this.queryObject.getString("queryId"), this.queryObject.getString("query"), rowNum, queryTime, e.toString());
+			e.printStackTrace();
+			success = false;
+			successMsg = e.toString();
 		} finally {
+			this.queryComplete(success, this.queryObject.getString("queryId"), this.queryObject.getString("query"), rowNum, queryTime, successMsg);
 			// NOTE: connections are now closed in RowBot at the END.
 			session.close();
 			try {
